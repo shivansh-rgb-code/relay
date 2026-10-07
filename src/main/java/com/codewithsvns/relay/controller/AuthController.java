@@ -1,5 +1,7 @@
 package com.codewithsvns.relay.controller;
 
+import com.codewithsvns.relay.dto.LoginRequest;
+import com.codewithsvns.relay.dto.LoginResponse;
 import com.codewithsvns.relay.dto.RegisterRequest;
 import com.codewithsvns.relay.dto.RegisterResponse;
 import com.codewithsvns.relay.service.AuthService;
@@ -27,5 +29,11 @@ public class AuthController {
         return ResponseEntity
                 .status(HttpStatus.CREATED)
                 .body(response);
+    }
+    @PostMapping("/login")
+    public ResponseEntity<LoginResponse> login(
+            @Valid @RequestBody LoginRequest request) {
+
+        return ResponseEntity.ok(authService.login(request));
     }
 }
