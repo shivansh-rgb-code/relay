@@ -1,0 +1,31 @@
+package com.codewithsvns.relay.controller;
+
+import com.codewithsvns.relay.dto.RegisterRequest;
+import com.codewithsvns.relay.dto.RegisterResponse;
+import com.codewithsvns.relay.service.AuthService;
+import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+@RestController
+@RequestMapping("/api/auth")
+public class AuthController {
+
+    private final AuthService authService;
+
+    public AuthController(AuthService authService) {
+        this.authService = authService;
+    }
+
+    @PostMapping("/register")
+    public ResponseEntity<RegisterResponse> register(
+            @Valid @RequestBody RegisterRequest request) {
+
+        RegisterResponse response = authService.register(request);
+
+        return ResponseEntity
+                .status(HttpStatus.CREATED)
+                .body(response);
+    }
+}
