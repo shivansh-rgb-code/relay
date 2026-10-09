@@ -85,4 +85,10 @@ public class MessageService {
                 message.getCreatedAt()
         );
     }
+    public String getUserEmail(Long userId) {
+        return userRepository.findById(userId)
+                .map(User::getEmail)
+                .orElseThrow(() ->
+                        new IllegalArgumentException("Receiver not found"));
+    }
 }
