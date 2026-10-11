@@ -1,0 +1,553 @@
+{
+  "info": {
+    "_postman_id": "92d73180-aa8b-4b82-8a6b-ada15834db81",
+    "name": "Relay Chat API",
+    "description": "# Relay Chat API\n\nPostman collection for **Relay**, a real-time chat backend.\n\n- **Base URL:** `https://relay-7sl3.onrender.com` (collection variable `baseUrl`)\n- **REST endpoints:** registration, login, user listing, sending a message and conversation history.\n- **Real-time messaging:** STOMP over WebSocket (documented below; it cannot be run from this collection).\n\n## How to use\n\n1. Run **Authentication > Register** (once per account), or skip it if the account already exists.\n2. Run **Authentication > Login**. Its test script stores the returned JWT in the collection variable `token`.\n3. Run the requests in **Users** and **Messaging**. They send `Authorization: Bearer {{token}}` automatically.\n\nRegister and Login override the collection's authentication with **No Auth**. All other requests inherit the Bearer token. Example credentials are placeholders only; never commit real passwords or tokens.\n\n## Real-time WebSocket messaging (STOMP)\n\nA Postman Collection v2.1 file holds REST requests only, so the WebSocket workflow is documented here instead of being faked as a REST request. Use a STOMP client to try it.\n\n| Setting | Value |\n|---|---|\n| WebSocket endpoint | `wss://relay-7sl3.onrender.com/ws` |\n| Protocol | STOMP over WebSocket |\n| Authentication | Native header on the STOMP `CONNECT` frame: `Authorization: Bearer <JWT_TOKEN>` |\n| Subscribe to | `/user/queue/messages` |\n| Send to | `/app/chat.send` |\n\n**Send body (JSON):**\n\n```json\n{\n  \"receiverId\": 2,\n  \"content\": \"Hello in real time!\"\n}\n```\n\n**Frame sequence:**\n\n1. Open a WebSocket to `/ws`.\n2. Send a `CONNECT` frame with the `Authorization: Bearer <JWT_TOKEN>` header (get the JWT from **Login**).\n3. Send a `SUBSCRIBE` frame for `/user/queue/messages`.\n4. Send a `SEND` frame to `/app/chat.send` with the JSON body above.\n\nThe saved message is delivered to both the recipient's subscription and the sender's subscription. Delivered messages use the same fields as the REST message response: `id`, `senderId`, `receiverId`, `content`, `createdAt`. The format of WebSocket error frames is unspecified.\n\n## Unspecified details\n\nSuccess status codes for the messaging endpoints, the `createdAt` format, the JWT lifetime and error response formats are not specified in this documentation. The saved examples show illustrative values only.\n",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "https://relay-7sl3.onrender.com",
+      "type": "string",
+      "description": "Deployed Relay backend URL, no trailing slash."
+    },
+    {
+      "key": "token",
+      "value": "",
+      "type": "string",
+      "description": "JWT. Filled automatically by the Login request."
+    }
+  ],
+  "item": [
+    {
+      "name": "Authentication",
+      "description": "Account creation and login. Neither request requires authentication.",
+      "item": [
+        {
+          "name": "Register",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 201 Created', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "pm.test('Response contains id, name, email and message', function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json).to.have.property('id');",
+                  "    pm.expect(json).to.have.property('name');",
+                  "    pm.expect(json).to.have.property('email');",
+                  "    pm.expect(json).to.have.property('message');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Relay User One\",\n  \"email\": \"user1@example.com\",\n  \"password\": \"ChangeThisPassword123!\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/register",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "register"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "Creates a new user account.\n\n**Authentication:** not required.\n\n**Request body (JSON):** `name`, `email`, `password`.\n\n**Success status:** `201 Created`\n\n**Success response fields:** `id`, `name`, `email`, `message`.\n\n```json\n{\n  \"id\": 1,\n  \"name\": \"Relay User One\",\n  \"email\": \"user1@example.com\",\n  \"message\": \"<message text>\"\n}\n```\n\nThe exact value of `message` and the format of error responses are unspecified. The example credentials are placeholders; use your own."
+          },
+          "response": [
+            {
+              "name": "Example 201 Created (field values are illustrative)",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Relay User One\",\n  \"email\": \"user1@example.com\",\n  \"password\": \"ChangeThisPassword123!\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/auth/register",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "auth",
+                    "register"
+                  ]
+                },
+                "auth": {
+                  "type": "noauth"
+                },
+                "description": "Creates a new user account.\n\n**Authentication:** not required.\n\n**Request body (JSON):** `name`, `email`, `password`.\n\n**Success status:** `201 Created`\n\n**Success response fields:** `id`, `name`, `email`, `message`.\n\n```json\n{\n  \"id\": 1,\n  \"name\": \"Relay User One\",\n  \"email\": \"user1@example.com\",\n  \"message\": \"<message text>\"\n}\n```\n\nThe exact value of `message` and the format of error responses are unspecified. The example credentials are placeholders; use your own."
+              },
+              "status": "Created",
+              "code": 201,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"id\": 1,\n  \"name\": \"Relay User One\",\n  \"email\": \"user1@example.com\",\n  \"message\": \"<message text>\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "if (pm.response.code === 200) {",
+                  "    const json = pm.response.json();",
+                  "    pm.test('Response contains a token', function () {",
+                  "        pm.expect(json).to.have.property('token');",
+                  "    });",
+                  "    if (json.token) {",
+                  "        pm.collectionVariables.set('token', json.token);",
+                  "    }",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"user1@example.com\",\n  \"password\": \"ChangeThisPassword123!\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "login"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "Authenticates a user and returns a JWT.\n\n**Authentication:** not required.\n\n**Request body (JSON):** `email`, `password`.\n\n**Success status:** `200 OK`\n\n**Success response:**\n```json\n{\n  \"token\": \"<JWT_TOKEN>\"\n}\n```\n\n**Test script:** on success, the `token` value is saved to the collection variable `token`, which every protected request uses as its Bearer token. The JWT lifetime and the format of error responses are unspecified."
+          },
+          "response": [
+            {
+              "name": "Example 200 OK",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"user1@example.com\",\n  \"password\": \"ChangeThisPassword123!\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/auth/login",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "auth",
+                    "login"
+                  ]
+                },
+                "auth": {
+                  "type": "noauth"
+                },
+                "description": "Authenticates a user and returns a JWT.\n\n**Authentication:** not required.\n\n**Request body (JSON):** `email`, `password`.\n\n**Success status:** `200 OK`\n\n**Success response:**\n```json\n{\n  \"token\": \"<JWT_TOKEN>\"\n}\n```\n\n**Test script:** on success, the `token` value is saved to the collection variable `token`, which every protected request uses as its Bearer token. The JWT lifetime and the format of error responses are unspecified."
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"token\": \"<JWT_TOKEN>\"\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Users",
+      "description": "User discovery. Requires a Bearer token.",
+      "item": [
+        {
+          "name": "List users",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Response is an array', function () {",
+                  "    pm.expect(pm.response.json()).to.be.an('array');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/users",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "users"
+              ]
+            },
+            "description": "Lists all users except the currently authenticated user.\n\n**Authentication:** required. Bearer token from the collection variable `token` (run **Login** first).\n\n**Success status:** `200 OK`\n\n**Success response:** a JSON array. Each element has `id`, `name`, `email`.\n\n```json\n[\n  {\n    \"id\": 2,\n    \"name\": \"Relay User Two\",\n    \"email\": \"user2@example.com\"\n  }\n]\n```\n\nThe format of error responses is unspecified."
+          },
+          "response": [
+            {
+              "name": "Example 200 OK (values are illustrative)",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/users",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "users"
+                  ]
+                },
+                "description": "Lists all users except the currently authenticated user.\n\n**Authentication:** required. Bearer token from the collection variable `token` (run **Login** first).\n\n**Success status:** `200 OK`\n\n**Success response:** a JSON array. Each element has `id`, `name`, `email`.\n\n```json\n[\n  {\n    \"id\": 2,\n    \"name\": \"Relay User Two\",\n    \"email\": \"user2@example.com\"\n  }\n]\n```\n\nThe format of error responses is unspecified."
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "[\n  {\n    \"id\": 2,\n    \"name\": \"Relay User Two\",\n    \"email\": \"user2@example.com\"\n  }\n]"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Messaging",
+      "description": "REST messaging and conversation history. Requires a Bearer token. For real-time messaging see the collection description.",
+      "item": [
+        {
+          "name": "Send message",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code >= 200 && pm.response.code < 300) {",
+                  "    pm.test('Response contains id, senderId, receiverId, content and createdAt', function () {",
+                  "        const json = pm.response.json();",
+                  "        pm.expect(json).to.have.property('id');",
+                  "        pm.expect(json).to.have.property('senderId');",
+                  "        pm.expect(json).to.have.property('receiverId');",
+                  "        pm.expect(json).to.have.property('content');",
+                  "        pm.expect(json).to.have.property('createdAt');",
+                  "    });",
+                  "} else {",
+                  "    pm.test('Request succeeded (2xx)', function () {",
+                  "        pm.expect.fail('Received status ' + pm.response.code);",
+                  "    });",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"receiverId\": 2,\n  \"content\": \"Hello from Relay!\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/messages",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "messages"
+              ]
+            },
+            "description": "Sends a text message to another user over REST.\n\n**Authentication:** required. Bearer token from the collection variable `token`.\n\n**Request body (JSON):** `receiverId` (numeric ID of the recipient, from **List users**) and `content`.\n\n**Success response fields:** `id`, `senderId`, `receiverId`, `content`, `createdAt`.\n\n```json\n{\n  \"id\": 1,\n  \"senderId\": 1,\n  \"receiverId\": 2,\n  \"content\": \"Hello from Relay!\",\n  \"createdAt\": \"<timestamp>\"\n}\n```\n\nThe success status code, the `createdAt` format and the format of error responses are unspecified. Change `receiverId` to the ID of a user that exists in your database."
+          },
+          "response": [
+            {
+              "name": "Example response (values and status code are illustrative)",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"receiverId\": 2,\n  \"content\": \"Hello from Relay!\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/messages",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "messages"
+                  ]
+                },
+                "description": "Sends a text message to another user over REST.\n\n**Authentication:** required. Bearer token from the collection variable `token`.\n\n**Request body (JSON):** `receiverId` (numeric ID of the recipient, from **List users**) and `content`.\n\n**Success response fields:** `id`, `senderId`, `receiverId`, `content`, `createdAt`.\n\n```json\n{\n  \"id\": 1,\n  \"senderId\": 1,\n  \"receiverId\": 2,\n  \"content\": \"Hello from Relay!\",\n  \"createdAt\": \"<timestamp>\"\n}\n```\n\nThe success status code, the `createdAt` format and the format of error responses are unspecified. Change `receiverId` to the ID of a user that exists in your database."
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"id\": 1,\n  \"senderId\": 1,\n  \"receiverId\": 2,\n  \"content\": \"Hello from Relay!\",\n  \"createdAt\": \"<timestamp>\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Get conversation history",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code >= 200 && pm.response.code < 300) {",
+                  "    pm.test('Response is an array', function () {",
+                  "        pm.expect(pm.response.json()).to.be.an('array');",
+                  "    });",
+                  "} else {",
+                  "    pm.test('Request succeeded (2xx)', function () {",
+                  "        pm.expect.fail('Received status ' + pm.response.code);",
+                  "    });",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/messages/:userId",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "messages",
+                ":userId"
+              ],
+              "variable": [
+                {
+                  "key": "userId",
+                  "value": "2",
+                  "description": "Numeric ID of the other user in the conversation."
+                }
+              ]
+            },
+            "description": "Retrieves the conversation history between the authenticated user and another user.\n\n**Authentication:** required. Bearer token from the collection variable `token`.\n\n**Path variable:** `userId`, the other user's numeric ID. Edit it in the **Params** tab.\n\n**Success response:** a JSON array of message objects, each with `id`, `senderId`, `receiverId`, `content`, `createdAt`.\n\n```json\n[\n  {\n    \"id\": 1,\n    \"senderId\": 1,\n    \"receiverId\": 2,\n    \"content\": \"Hello from Relay!\",\n    \"createdAt\": \"<timestamp>\"\n  }\n]\n```\n\nThe success status code, the `createdAt` format and the format of error responses are unspecified."
+          },
+          "response": [
+            {
+              "name": "Example response (values and status code are illustrative)",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/messages/:userId",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "messages",
+                    ":userId"
+                  ],
+                  "variable": [
+                    {
+                      "key": "userId",
+                      "value": "2",
+                      "description": "Numeric ID of the other user in the conversation."
+                    }
+                  ]
+                },
+                "description": "Retrieves the conversation history between the authenticated user and another user.\n\n**Authentication:** required. Bearer token from the collection variable `token`.\n\n**Path variable:** `userId`, the other user's numeric ID. Edit it in the **Params** tab.\n\n**Success response:** a JSON array of message objects, each with `id`, `senderId`, `receiverId`, `content`, `createdAt`.\n\n```json\n[\n  {\n    \"id\": 1,\n    \"senderId\": 1,\n    \"receiverId\": 2,\n    \"content\": \"Hello from Relay!\",\n    \"createdAt\": \"<timestamp>\"\n  }\n]\n```\n\nThe success status code, the `createdAt` format and the format of error responses are unspecified."
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "[\n  {\n    \"id\": 1,\n    \"senderId\": 1,\n    \"receiverId\": 2,\n    \"content\": \"Hello from Relay!\",\n    \"createdAt\": \"<timestamp>\"\n  }\n]"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
