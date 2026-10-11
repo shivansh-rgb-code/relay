@@ -1,6 +1,12 @@
 # Relay — Real-Time Chat Backend
 
-Relay is a Spring Boot backend for authenticated, real-time messaging. It combines REST APIs for account management and message history with WebSockets using STOMP for live message delivery.
+Relay is a Spring Boot backend for authenticated, real-time messaging. It combines REST APIs for account management and message history with WebSockets using STOMP for live message delivery. The application uses PostgreSQL for persistence and JWTs for authentication.
+
+## Live Demo
+
+- **Frontend:** https://graceful-snickerdoodle-1af48c.netlify.app/
+- **Backend:** https://relay-7sl3.onrender.com/
+- **Source Code:** https://github.com/shivansh-rgb-code/relay
 
 ## Features
 
@@ -8,31 +14,31 @@ Relay is a Spring Boot backend for authenticated, real-time messaging. It combin
 - Password hashing with BCrypt
 - JWT-based authentication
 - Protected user discovery
-- REST endpoints to send messages and retrieve conversation history
-- Real-time messaging through WebSockets and STOMP
-- PostgreSQL persistence
-- Validation and authenticated WebSocket connections
+- REST APIs for sending messages and retrieving conversation history
+- Real-time messaging using WebSockets and STOMP
+- PostgreSQL persistence for users and messages
+- Request validation and authenticated WebSocket connections
+- Sender and recipient message delivery through user-specific queues
 
 ## Tech Stack
 
-- Java 25
-- Spring Boot
-- Spring Security
-- Spring Data JPA / Hibernate
-- PostgreSQL
-- WebSocket / STOMP
-- JSON Web Tokens (JWT)
-- Maven
+- **Language:** Java 25
+- **Framework:** Spring Boot
+- **Security:** Spring Security, JWT, BCrypt
+- **Database:** PostgreSQL
+- **Persistence:** Spring Data JPA / Hibernate
+- **Real-Time Communication:** WebSocket / STOMP
+- **Build Tool:** Maven
 
 ## Prerequisites
 
 - JDK 25
-- PostgreSQL
+- PostgreSQL (for local development)
 - Git
 
 ## Configuration
 
-Configure the following environment variables before running the application:
+Configure the required environment variables before running the application locally or deploying it.
 
 | Variable | Description |
 |---|---|
@@ -40,42 +46,101 @@ Configure the following environment variables before running the application:
 | `DB_USERNAME` | Database username |
 | `DB_PASSWORD` | Database password |
 | `JWT_SECRET` | Strong secret used to sign JWTs |
-| `JWT_EXPIRATION` | Token lifetime in milliseconds; `86400000` is 24 hours |
+| `JWT_EXPIRATION` | JWT lifetime in milliseconds; `86400000` equals 24 hours |
+| `ALLOWED_ORIGINS` | Comma-separated list of permitted frontend origins for CORS and WebSocket connections |
 
-See `.env.example` for the expected variable names. It is a template; Spring Boot does not automatically load it.
+See `.env.example` for the expected configuration names. It is a template; Spring Boot does not automatically load a `.env` file. Supply the variables through your environment or hosting provider's configuration settings.
+
+Never commit real credentials or production secrets.
 
 ## Run Locally
 
-1. Clone the repository.
+1. Clone the repository:
+
+   ```powershell
+   git clone https://github.com/shivansh-rgb-code/relay.git
+   cd relay
+   ```
+
 2. Create a PostgreSQL database.
-3. Set the required environment variables.
-4. Run the application:
+3. Configure the required environment variables using your local environment.
+4. Start the application:
 
    ```powershell
    .\mvnw.cmd spring-boot:run
    ```
 
-The application uses the port configured by Spring Boot, normally `8080`.
+The application normally runs at `http://localhost:8080`, unless configured otherwise.
 
 ## REST API
 
-Base URL: `http://localhost:8080`
+### Base URLs
 
-| Method | Endpoint | Purpose |
-|---|---|---|
-| POST | `/api/auth/register` | Register a user |
-| POST | `/api/auth/login` | Authenticate and obtain a JWT |
-| GET | `/api/users` | List other users |
-| POST | `/api/messages` | Send a message |
-| GET | `/api/messages/{userId}` | Retrieve conversation history |
+- **Local:** `http://localhost:8080`
+- **Deployed:** `https://relay-7sl3.onrender.com`
 
-Protected REST endpoints require:
+| Method | Endpoint | Purpose | Authentication |
+|---|---|---|---|
+| `POST` | `/api/auth/register` | Register a user | Not required |
+| `POST` | `/api/auth/login` | Authenticate and obtain a JWT | Not required |
+| `GET` | `/api/users` | List other users | Bearer token |
+| `POST` | `/api/messages` | Send a message | Bearer token |
+| `GET` | `/api/messages/{userId}` | Retrieve conversation history | Bearer token |
 
-```http
-Authorization: Bearer <JWT>
+### Register
+
+**Endpoint:** `POST /api/auth/register`
+
+Example request body:
+
+```json
+{
+  "name": "Relay User",
+  "email": "user@example.com",
+  "password": "ChangeThisPassword123!"
+}
 ```
 
+Successful registration returns `201 Created` with the user's `id`, `name`, `email`, and a message.
+
+### Login
+
+**Endpoint:** `POST /api/auth/login`
+
+Example request body:
+
+```json
+{
+  "email": "user@example.com",
+  "password": "ChangeThisPassword123!"
+}
+```
+
+Successful login returns a JWT:
+
+```json
+{
+  "token": "<JWT_TOKEN>"
+}
+```
+
+### Authentication
+
+Protected REST endpoints require the JWT returned by the login endpoint. Include it in the request header:
+
+```http
+Authorization: Bearer <JWT_TOKEN>
+```
+
+### List Users
+
+**Endpoint:** `GET /api/users`
+
+Returns users other than the currently authenticated user. Each user contains an `id`, `name`, and `email`.
+
 ### Send a Message
+
+**Endpoint:** `POST /api/messages`
 
 Example request body:
 
@@ -86,43 +151,98 @@ Example request body:
 }
 ```
 
-Use the JWT of the authenticated sender.
+Use the authenticated sender's JWT and replace `receiverId` with the ID of the intended recipient.
 
-## WebSocket Messaging
+The response contains the saved message's `id`, `senderId`, `receiverId`, `content`, and `createdAt`.
 
-- Endpoint: `/ws`
-- Protocol: STOMP over WebSocket
-- Application destination: `/app/chat.send`
-- Recipient subscription: `/user/queue/messages`
+### Retrieve Conversation History
 
-The WebSocket handshake requires a valid JWT in the `Authorization` header:
+**Endpoint:** `GET /api/messages/{userId}`
 
-```http
-Authorization: Bearer <JWT>
+Replace `{userId}` with the other participant's numeric user ID. The endpoint returns the conversation history between the authenticated user and that participant.
+
+## Real-Time WebSocket Messaging
+
+Relay supports real-time message delivery through WebSockets using the STOMP protocol.
+
+| Setting | Value |
+|---|---|
+| WebSocket endpoint | `/ws` |
+| Deployed WebSocket URL | `wss://relay-7sl3.onrender.com/ws` |
+| Protocol | STOMP over WebSocket |
+| Application destination | `/app/chat.send` |
+| User-specific subscription | `/user/queue/messages` |
+
+### Authentication and Message Flow
+
+JWT authentication takes place in the STOMP `CONNECT` frame, using a native `Authorization` header. It is not performed through the initial HTTP WebSocket handshake.
+
+Use the following header in the STOMP `CONNECT` frame:
+
+```text
+Authorization: Bearer <JWT_TOKEN>
 ```
 
-Connect using a STOMP client, authenticate, and subscribe to `/user/queue/messages`. Send messages to `/app/chat.send` with a JSON body containing `receiverId` and `content`.
+A typical messaging flow is:
 
-Messages are persisted and delivered to the recipient's user-specific queue.
+1. Establish a WebSocket connection to `/ws`.
+2. Send a STOMP `CONNECT` frame containing the JWT authorization header.
+3. Subscribe to `/user/queue/messages`.
+4. Send a STOMP `SEND` frame to `/app/chat.send`.
+
+Example message body:
+
+```json
+{
+  "receiverId": 2,
+  "content": "Hello in real time!"
+}
+```
+
+The backend persists the message and delivers the saved message to both the recipient and the sender through their user-specific queues.
+
+For production use, connect through the secure `wss://` endpoint.
 
 ## Database
 
-The application stores users and messages in PostgreSQL. Message records include sender, receiver, content, and creation timestamp.
+Relay uses PostgreSQL to store user accounts and messages. Message records include the sender, receiver, content, and creation timestamp.
 
-Hibernate schema updates are configured for development. Review database migration and schema-management settings before production use.
+Hibernate schema updates are configured for development. Review the schema-management configuration before production use; a database migration tool is preferable for controlled production schema changes.
+
+## Testing with Postman
+
+A Postman collection is provided in the repository at `postman/Relay_Postman_Collection.json` 
+
+To test the REST API:
+
+1. Register two users with different email addresses.
+2. Log in with one account to obtain a JWT.
+3. List users and identify the other user's ID.
+4. Send a message to that user.
+5. Retrieve the conversation history.
+6. Test protected endpoints with a missing or invalid token.
+
+Use separate authenticated sessions to test real-time messaging between two users.
 
 ## Security Notes
 
-- Never commit real passwords, JWT secrets, or production credentials.
+- Never commit passwords, JWT secrets, database credentials, or real JWTs.
 - Use a strong, randomly generated JWT secret.
-- Restrict allowed WebSocket origins before production deployment.
-- Use HTTPS/WSS in production.
-- Configure production database access securely.
+- Keep production database access restricted.
+- Configure permitted frontend origins carefully.
+- Use HTTPS and WSS in production.
+- Review authentication, authorization, and database configuration before production use.
 
 ## Deployment
 
-The backend can be deployed to a Java-compatible hosting provider such as Render. Configure the database and all required environment variables in the hosting dashboard. Use the deployed HTTPS URL for REST requests and the corresponding secure WebSocket URL for WebSocket connections.
+The backend is deployed on Render, and the frontend is hosted on Netlify.
 
-## Current Status
+- **Backend URL:** https://relay-7sl3.onrender.com/
+- **Frontend URL:** https://graceful-snickerdoodle-1af48c.netlify.app/
 
-Core REST messaging, message persistence, JWT-authenticated STOMP connections, and real-time message delivery have been tested locally.
+Production configuration, including database credentials, JWT settings, and allowed origins, should be managed through the hosting provider's environment settings rather than committed to the repository.
+
+## Project Status
+
+The backend and frontend are deployed, and real-time messaging has been verified. REST endpoints should be tested against the deployed service before submission to confirm registration, login, authorization, message persistence, and conversation history.
+
