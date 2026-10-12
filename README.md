@@ -244,5 +244,4 @@ Production configuration, including database credentials, JWT settings, and allo
 
 ## Project Status
 
-The backend and frontend are deployed, and real-time messaging has been verified. REST endpoints should be tested against the deployed service before submission to confirm registration, login, authorization, message persistence, and conversation history.
-
+The backend and frontend are deployed, and real-time messaging has been verified.
