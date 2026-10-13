@@ -34,14 +34,13 @@ public class ChatWebSocketController {
         MessageResponse savedMessage =
                 messageService.sendMessage(senderEmail, request);
 
-        // Send the saved message to the recipient.
+
         messagingTemplate.convertAndSendToUser(
                 getRecipientEmail(request.getReceiverId()),
                 "/queue/messages",
                 savedMessage
         );
 
-        // Echo the saved message back to the sender.
         messagingTemplate.convertAndSendToUser(
                 senderEmail,
                 "/queue/messages",
@@ -50,7 +49,6 @@ public class ChatWebSocketController {
     }
 
     private String getRecipientEmail(Long receiverId) {
-        // Resolve the receiver's email through the existing service.
         return messageService.getUserEmail(receiverId);
     }
 }
